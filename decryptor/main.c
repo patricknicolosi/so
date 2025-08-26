@@ -39,7 +39,10 @@ void *Descryptor(void *arg)
 
     while (1)
     {
+
         sem_wait(&(params->presente_frase_da_decifrare));
+        if (params->terminazione == 1)
+            break;
 
         char *encrypt_string;
         if (params->sentence.type == 1)
@@ -87,32 +90,72 @@ int main(void)
     }
 
     // Definisco i parametri
-    SharedParams *params;
-    params = malloc(sizeof(SharedParams));
+    SharedParams *params1, *params2, *params3;
+    params1 = malloc(sizeof(SharedParams));
+    params2 = malloc(sizeof(SharedParams));
+    params3 = malloc(sizeof(SharedParams));
 
-    params->terminazione = 0;
-    sem_init(&(params->presente_frase_da_decifrare), 0, 0);
-    sem_init(&(params->presente_frase_decifrata), 0, 1); // Il thread principale puo partire subito
+    params1->terminazione = 0;
+    sem_init(&(params1->presente_frase_da_decifrare), 0, 0);
+    sem_init(&(params1->presente_frase_decifrata), 0, 1);
+
+    params2->terminazione = 0;
+    sem_init(&(params2->presente_frase_da_decifrare), 0, 0);
+    sem_init(&(params2->presente_frase_decifrata), 0, 1);
+
+    params3->terminazione = 0;
+    sem_init(&(params3->presente_frase_da_decifrare), 0, 0);
+    sem_init(&(params3->presente_frase_decifrata), 0, 1);
 
     // Dichiaro i tre thread
     pthread_t t1, t2, t3;
 
     // Creo i thread
-    pthread_create(&t1, NULL, Descryptor, params);
-    pthread_create(&t2, NULL, Descryptor, params);
-    pthread_create(&t3, NULL, Descryptor, params);
+    pthread_create(&t1, NULL, Descryptor, params1);
+    pthread_create(&t2, NULL, Descryptor, params2);
+    pthread_create(&t3, NULL, Descryptor, params3);
 
     // Devo passare le varie frasi ai thread
     for (int i = 0; i < 57; i++)
     {
-        sem_wait(&(params->presente_frase_decifrata));
-        printf("%s \n", params->sentence.value);
-        params->sentence = sentences[i];
-        sem_post(&(params->presente_frase_da_decifrare));
+        if (sentences[i].type == 1)
+        {
+            sem_wait(&(params1->presente_frase_decifrata));
+            if (i != 0)
+            {
+                printf("%s \n", params1->sentence.value);
+            }
+            params1->sentence = sentences[i];
+            sem_post(&(params1->presente_frase_da_decifrare));
+        }
+        else if (sentences[i].type == 2)
+        {
+            sem_wait(&(params2->presente_frase_decifrata));
+            if (i != 0)
+            {
+                printf("%s \n", params2->sentence.value);
+            }
+            params2->sentence = sentences[i];
+            sem_post(&(params2->presente_frase_da_decifrare));
+        }
+        else if (sentences[i].type == 3)
+        {
+            sem_wait(&(params3->presente_frase_decifrata));
+            if (i != 0)
+            {
+                printf("%s \n", params3->sentence.value);
+            }
+            params3->sentence = sentences[i];
+            sem_post(&(params3->presente_frase_da_decifrare));
+        }
     }
 
-    params->terminazione = 1;
-    sem_post(&(params->presente_frase_da_decifrare));
+    params1->terminazione = 1;
+    params2->terminazione = 1;
+    params3->terminazione = 1;
+    sem_post(&(params1->presente_frase_da_decifrare));
+    sem_post(&(params2->presente_frase_da_decifrare));
+    sem_post(&(params3->presente_frase_da_decifrare));
 
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);

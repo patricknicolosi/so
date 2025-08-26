@@ -3,6 +3,7 @@
 #include "semaphore.h"
 #include "pthread.h"
 #include "string.h"
+#include "ctype.h"
 
 char *substring(char *string, int start, int end)
 {
