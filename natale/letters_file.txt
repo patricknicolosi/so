@@ -1,0 +1,6 @@
+paolo;piano
+veronica;zaino
+sebastiano;cuffie
+patrick;chitarra
+william;fotocamera
+karola;auto

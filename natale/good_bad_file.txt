@@ -1,0 +1,6 @@
+paolo;good
+veronica;good
+sebastiano;bad
+patrick;bad
+william;good
+karola;bad

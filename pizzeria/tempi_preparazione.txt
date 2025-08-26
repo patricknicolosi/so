@@ -1,0 +1,20 @@
+Diavola, 10
+Quattro Stagioni, 12
+Capricciosa, 13
+Marinara, 7
+Prosciutto e Funghi, 11
+Vegetariana, 10
+Tonno e Cipolla, 11
+Bufalina, 14
+Americana, 12
+Quattro Formaggi, 13
+Salsiccia e Friarielli, 14
+Ortolana, 11
+Boscaiola, 12
+Napoli, 9
+Gorgonzola e Noci, 14
+Pugliese, 11
+Romana, 10
+Bianca, 8
+Calzone, 10
+Rustica, 11

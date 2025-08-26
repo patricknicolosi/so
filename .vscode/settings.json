@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.cpp": "cpp",
+        "string.h": "c",
+        "array": "cpp",
+        "stdlib.h": "c",
+        "semaphore.h": "c",
+        "misc.h": "c"
+    }
+}
