@@ -9,7 +9,8 @@ il rispettivo thread che decifra.
 
 */
 
-#include "misc.h"
+#include "utils/string_utils.h"
+#include "models/sentence.h"
 
 typedef struct
 {
@@ -22,7 +23,7 @@ void *Descryptor(void *arg)
 {
     SharedParams *params = (SharedParams *)arg;
 
-    FILE *file = fopen("keys.txt", "r");
+    FILE *file = fopen("assets/keys.txt", "r");
 
     // Memorizza gli alfabeti
     char line[200];
@@ -66,7 +67,7 @@ void *Descryptor(void *arg)
 int main(void)
 {
     FILE *file;
-    file = fopen("ciphertext.txt", "r");
+    file = fopen("assets/ciphertext.txt", "r");
 
     if (!file)
     {
@@ -120,7 +121,7 @@ int main(void)
 
         // Passo al thread la frase da decifrase
         sem_post(&(params->presente_frase_da_decifrare));
-        printf("MAIN[%d]: dico che C( presente una frase da decifrare\n", sentences[i].type);
+        printf("MAIN[%d]: dico che è presente una frase da decifrare\n", sentences[i].type);
 
         // Aspetto la risposta
         sem_wait(&(params->presente_frase_decifrata));

@@ -28,12 +28,6 @@ char *substring(char *string, int start, int end)
     return substring;
 }
 
-typedef struct
-{
-    int type;
-    char value[100];
-} Sentence;
-
 int index_in_alphabet(char *alphabet, char character)
 {
     for (int i = 0; i < strlen(alphabet); i++)

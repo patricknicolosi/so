@@ -1,9 +1,0 @@
-- frase_da_decifrare = 0
-- frase_decifrata = 0
-
-- Decryptor: wait(frase_da_decifrare)
-- Main: post(frase_da_decifrare)
-- Main: wait(frase_decifrata)
-- Decryptor: post(frase_decifrata)
-
-
