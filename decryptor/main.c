@@ -35,6 +35,8 @@ void *Descryptor(void *arg)
         encrypted_alphabets_index++;
     }
 
+    fclose(file);
+
     printf("DECRYPTOR[%d]: resto in attesa della frase da decifrare\n", params->sentence.type);
     sem_wait(&(params->presente_frase_da_decifrare));
 
