@@ -5,6 +5,7 @@
         "array": "cpp",
         "stdlib.h": "c",
         "semaphore.h": "c",
-        "misc.h": "c"
+        "misc.h": "c",
+        "pthread.h": "c"
     }
 }

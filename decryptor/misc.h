@@ -5,6 +5,16 @@
 #include "string.h"
 #include "ctype.h"
 
+void remove_spaces(char *string)
+{
+    size_t dim = strlen(string);
+
+    while (dim && string[dim - 1] == '\r' || string[dim - 1] == '\n')
+    {
+        string[--dim] = '\0';
+    }
+}
+
 char *substring(char *string, int start, int end)
 {
     char *substring;
@@ -45,18 +55,19 @@ char *decrypt(char *encrypted_string, char *crypted_alphabet)
         exit(1);
     }
 
-    for (size_t i = 0; i < len; i++)
+    for (int i = 0; i < strlen(encrypted_string); i++)
     {
-        int pos = index_in_alphabet(crypted_alphabet, encrypted_string[i]);
-        if (pos == -1)
+        if (index_in_alphabet(crypted_alphabet, encrypted_string[i]) == -1)
         {
             decrypted_string[i] = encrypted_string[i];
         }
         else
         {
+            int pos = index_in_alphabet(crypted_alphabet, encrypted_string[i]);
             decrypted_string[i] = alphabet[pos];
         }
     }
+
     decrypted_string[len] = '\0';
     return decrypted_string;
 }
