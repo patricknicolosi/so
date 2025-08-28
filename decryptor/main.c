@@ -11,6 +11,16 @@ il rispettivo thread che decifra.
 
 #include "misc.h"
 
+void remove_spaces(char *string)
+{
+    size_t dim = strlen(string);
+
+    while (dim && string[dim - 1] == '\r' || string[dim - 1] == '\n')
+    {
+        string[--dim] = '\0';
+    }
+}
+
 typedef struct
 {
     int terminazione;
@@ -21,11 +31,9 @@ typedef struct
 
 void *Descryptor(void *arg)
 {
-    SharedParams *params;
-    params = (SharedParams *)arg;
+    SharedParams *params = (SharedParams *)arg;
 
-    FILE *file;
-    file = fopen("keys.txt", "r");
+    FILE *file = fopen("keys.txt", "r");
 
     // Memorizza gli alfabeti
     char line[200];
@@ -33,13 +41,14 @@ void *Descryptor(void *arg)
     int encrypted_alphabets_index = 0;
     while (fgets(line, 200, file))
     {
+        remove_spaces(line);
         strcpy(encrypted_alphabets[encrypted_alphabets_index], line);
         encrypted_alphabets_index++;
     }
 
     while (1)
     {
-
+        printf("DECRYPTOR[%d]: resto in attesa della frase da decifrare\n", params->sentence.type);
         sem_wait(&(params->presente_frase_da_decifrare));
         if (params->terminazione == 1)
             break;
@@ -61,6 +70,7 @@ void *Descryptor(void *arg)
             strcpy(params->sentence.value, encrypt_string);
         }
 
+        printf("DECRYPTOR[%d]: Dico a MAIN che c'è una frase decifrata\n", params->sentence.type);
         sem_post(&(params->presente_frase_decifrata));
     }
 
@@ -72,15 +82,21 @@ int main(void)
     FILE *file;
     file = fopen("ciphertext.txt", "r");
 
+    if (!file)
+    {
+        perror("Cazzo non esiste!\n");
+        return -1;
+    }
+
     Sentence sentences[57];
 
     // Legge tutte le frasi criptate da file
     char line[100];
     int sentences_index = 0;
-    while (fgets(line, 100, file))
+    while (fgets(line, 100, file) && sentences_index < 57)
     {
-        strcpy(line, substring(line, 0, strlen(line) - 1));
-        char *string_sub = substring(line, 2, strlen(line));
+        remove_spaces(line);
+        char *string_sub = substring(line, 2, (int)strlen(line));
         char *type_sub = substring(line, 0, 1);
 
         // Carica sul tipo Sentence
@@ -89,77 +105,48 @@ int main(void)
         sentences_index++;
     }
 
+    fclose(file);
+
     // Definisco i parametri
-    SharedParams *params1, *params2, *params3;
-    params1 = malloc(sizeof(SharedParams));
-    params2 = malloc(sizeof(SharedParams));
-    params3 = malloc(sizeof(SharedParams));
+    SharedParams *params = malloc(sizeof(SharedParams));
 
-    params1->terminazione = 0;
-    sem_init(&(params1->presente_frase_da_decifrare), 0, 0);
-    sem_init(&(params1->presente_frase_decifrata), 0, 1);
+    if (!params)
+    {
+        perror("malloc err\n");
+        return -1;
+    }
 
-    params2->terminazione = 0;
-    sem_init(&(params2->presente_frase_da_decifrare), 0, 0);
-    sem_init(&(params2->presente_frase_decifrata), 0, 1);
-
-    params3->terminazione = 0;
-    sem_init(&(params3->presente_frase_da_decifrare), 0, 0);
-    sem_init(&(params3->presente_frase_decifrata), 0, 1);
+    params->terminazione = 0;
+    sem_init(&(params->presente_frase_da_decifrare), 0, 0);
+    sem_init(&(params->presente_frase_decifrata), 0, 0);
 
     // Dichiaro i tre thread
-    pthread_t t1, t2, t3;
+    pthread_t t;
 
     // Creo i thread
-    pthread_create(&t1, NULL, Descryptor, params1);
-    pthread_create(&t2, NULL, Descryptor, params2);
-    pthread_create(&t3, NULL, Descryptor, params3);
+    pthread_create(&t, NULL, Descryptor, params);
 
     // Devo passare le varie frasi ai thread
     for (int i = 0; i < 57; i++)
     {
-        if (sentences[i].type == 1)
-        {
-            sem_wait(&(params1->presente_frase_decifrata));
-            if (i != 0)
-            {
-                printf("%s \n", params1->sentence.value);
-            }
-            params1->sentence = sentences[i];
-            sem_post(&(params1->presente_frase_da_decifrare));
-        }
-        else if (sentences[i].type == 2)
-        {
-            sem_wait(&(params2->presente_frase_decifrata));
-            if (i != 0)
-            {
-                printf("%s \n", params2->sentence.value);
-            }
-            params2->sentence = sentences[i];
-            sem_post(&(params2->presente_frase_da_decifrare));
-        }
-        else if (sentences[i].type == 3)
-        {
-            sem_wait(&(params3->presente_frase_decifrata));
-            if (i != 0)
-            {
-                printf("%s \n", params3->sentence.value);
-            }
-            params3->sentence = sentences[i];
-            sem_post(&(params3->presente_frase_da_decifrare));
-        }
+        // Passo la frase al decryptor
+        params->sentence.type = sentences[i].type;
+        strcpy(params->sentence.value, sentences[i].value);
+
+        sem_post(&(params->presente_frase_da_decifrare));
+        printf("MAIN[%d]: dico che è presente una frase da decifrare\n", sentences[i].type);
+
+        // Aspetto la risposta
+        sem_wait(&(params->presente_frase_decifrata));
+        printf("MAIN[%d]: frase decifrata = %s\n", sentences[i].type, params->sentence.value);
+
+        printf("MAIN: Sono arrivato a servire la frase numero: %d\n", i);
     }
 
-    params1->terminazione = 1;
-    params2->terminazione = 1;
-    params3->terminazione = 1;
-    sem_post(&(params1->presente_frase_da_decifrare));
-    sem_post(&(params2->presente_frase_da_decifrare));
-    sem_post(&(params3->presente_frase_da_decifrare));
+    params->terminazione = 1;
+    sem_post(&(params->presente_frase_da_decifrare));
 
-    pthread_join(t1, NULL);
-    pthread_join(t2, NULL);
-    pthread_join(t3, NULL);
+    pthread_join(t, NULL);
 
     return 0;
 }

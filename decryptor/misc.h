@@ -37,19 +37,26 @@ int index_in_alphabet(char *alphabet, char character)
 char *decrypt(char *encrypted_string, char *crypted_alphabet)
 {
     char alphabet[27] = "abcdefghijklmnopqrstuvwxyz";
-    char decrypted_string[100];
+    size_t len = strlen(encrypted_string);
 
-    for (int i = 0; i < strlen(encrypted_string); i++)
+    char *decrypted_string = malloc(len + 1);
+    if (!decrypted_string)
     {
-        if (index_in_alphabet(crypted_alphabet, encrypted_string[i]) == -1)
+        exit(1);
+    }
+
+    for (size_t i = 0; i < len; i++)
+    {
+        int pos = index_in_alphabet(crypted_alphabet, encrypted_string[i]);
+        if (pos == -1)
         {
             decrypted_string[i] = encrypted_string[i];
         }
         else
         {
-            int pos = index_in_alphabet(crypted_alphabet, encrypted_string[i]);
             decrypted_string[i] = alphabet[pos];
         }
     }
+    decrypted_string[len] = '\0';
     return decrypted_string;
 }
