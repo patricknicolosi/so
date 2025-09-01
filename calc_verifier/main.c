@@ -58,7 +58,7 @@ void init_shared_params(SharedParams *params, int calc_thread_n)
 
     params->calc_sem = malloc(sizeof(sem_t) * calc_thread_n);
     for (int i = 0; i < calc_thread_n; i++)
-        sem_init(&(params->calc_sem[i]), 0, 1);
+        sem_init(&(params->calc_sem[i]), 0, 0);
 
     pthread_mutex_init(&params->shared_params_mutex, 0);
 
@@ -77,7 +77,6 @@ void *add(void *arg)
             break;
         params->res = params->operand_one + params->operand_two;
         printf("[ADD %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
-        params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
     }
 
@@ -95,7 +94,6 @@ void *sub(void *arg)
             break;
         params->res = params->operand_one - params->operand_two;
         printf("[SUB %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
-        params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
     }
 
@@ -113,7 +111,6 @@ void *mul(void *arg)
             break;
         params->res = params->operand_one * params->operand_two;
         printf("[MUL %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
-        params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
     }
 
@@ -158,14 +155,11 @@ void *calc(void *arg)
     long long temp_result;
     for (int i = 0; i < lines_number - 2; i++)
     {
-
-        sem_wait(&(params->shared_params->calc_sem[params->pid]));
-        temp_result = params->shared_params->res;
-        pthread_mutex_unlock(&(params->shared_params->shared_params_mutex));
         pthread_mutex_lock(&(params->shared_params->shared_params_mutex));
-
         if (i == 0)
             params->shared_params->operand_one = atoll(lines[0]);
+        else
+            params->shared_params->operand_one = temp_result;
         params->shared_params->operand_two = operands[i];
         params->shared_params->operation = operations[i];
         params->shared_params->pid = params->pid;
@@ -182,6 +176,9 @@ void *calc(void *arg)
         {
             sem_post(&(params->shared_params->operations_sem[MUL]));
         }
+        sem_wait(&(params->shared_params->calc_sem[params->pid]));
+        temp_result = params->shared_params->res;
+        pthread_mutex_unlock(&(params->shared_params->shared_params_mutex));
     }
 
     if (temp_result == file_result)

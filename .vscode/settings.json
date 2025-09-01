@@ -6,6 +6,7 @@
         "stdlib.h": "c",
         "semaphore.h": "c",
         "misc.h": "c",
-        "pthread.h": "c"
+        "pthread.h": "c",
+        "dirent.h": "c"
     }
 }

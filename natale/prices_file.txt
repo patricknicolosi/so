@@ -1,6 +1,0 @@
-piano;30.50
-zaino;50.0
-cuffie;20.00
-chitarra;300.30
-fotocamera;450
-auto;30000
