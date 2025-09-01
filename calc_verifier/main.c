@@ -9,24 +9,23 @@
 
 char *substring(char *string, int start, int end)
 {
-    char *substring = malloc((strlen(string) - end + start) + 1);
+    char *substring = malloc(end - start + 2);
     int substring_index = 0;
     for (int i = start; i < end + 1; i++)
     {
         substring[substring_index] = string[i];
         substring_index++;
     }
-    substring[substring_index] = '\0'; // aggiunto terminatore
+    substring[substring_index] = '\0';
     return substring;
 }
 
 typedef enum
 {
-    ADD,
-    SUB,
-    MUL,
-    CALC
-} ThreadType;
+    ADD = 0,
+    SUB = 1,
+    MUL = 2,
+} OperationType;
 
 typedef struct
 {
@@ -34,78 +33,101 @@ typedef struct
     long long operand_two;
     char operation;
     long long res;
-    sem_t semaphores[4];
     bool done;
+
+    int pid;
+
+    pthread_mutex_t shared_params_mutex;
+
+    sem_t *calc_sem;
+    sem_t operations_sem[3];
 } SharedParams;
 
-void init_shared_params(SharedParams *params)
+typedef struct
 {
-    sem_init(&(params->semaphores[CALC]), 0, 1);
-    sem_init(&(params->semaphores[ADD]), 0, 0);
-    sem_init(&(params->semaphores[SUB]), 0, 0);
-    sem_init(&(params->semaphores[MUL]), 0, 0);
+    SharedParams *shared_params;
+    int pid;
+    char *filename;
+} CalcParams;
+
+void init_shared_params(SharedParams *params, int calc_thread_n)
+{
+    sem_init(&(params->operations_sem[ADD]), 0, 0);
+    sem_init(&(params->operations_sem[SUB]), 0, 0);
+    sem_init(&(params->operations_sem[MUL]), 0, 0);
+
+    params->calc_sem = malloc(sizeof(pthread_t) * calc_thread_n);
+    for (int i = 0; i < calc_thread_n; i++)
+        sem_init(&(params->calc_sem[i]), 0, 1);
+
+    pthread_mutex_init(&params->shared_params_mutex, 0);
+
     params->done = false;
+    params->res = 0;
 }
 
-void add(void *arg)
+void *add(void *arg)
 {
     SharedParams *params = (SharedParams *)arg;
 
     while (true)
     {
-        sem_wait(&(params->semaphores[ADD]));
+        sem_wait(&(params->operations_sem[ADD]));
         if (params->done)
             break;
         params->res = params->operand_one + params->operand_two;
-        printf("[ADD] %lld + %lld = %lld\n", params->operand_one, params->operand_two, params->res);
+        printf("[ADD %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
-        sem_post(&(params->semaphores[CALC]));
+        sem_post(&(params->calc_sem[params->pid]));
+        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
 }
 
-void sub(void *arg)
+void *sub(void *arg)
 {
     SharedParams *params = (SharedParams *)arg;
 
     while (true)
     {
-        sem_wait(&(params->semaphores[SUB]));
+        sem_wait(&(params->operations_sem[SUB]));
         if (params->done)
             break;
         params->res = params->operand_one - params->operand_two;
-        printf("[SUB] %lld - %lld = %lld\n", params->operand_one, params->operand_two, params->res);
+        printf("[SUB %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
-        sem_post(&(params->semaphores[CALC]));
+        sem_post(&(params->calc_sem[params->pid]));
+        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
 }
 
-void mul(void *arg)
+void *mul(void *arg)
 {
     SharedParams *params = (SharedParams *)arg;
 
     while (true)
     {
-        sem_wait(&(params->semaphores[MUL]));
+        sem_wait(&(params->operations_sem[MUL]));
         if (params->done)
             break;
         params->res = params->operand_one * params->operand_two;
-        printf("[MUL] %lld x %lld = %lld\n", params->operand_one, params->operand_two, params->res);
+        printf("[MUL %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
-        sem_post(&(params->semaphores[CALC]));
+        sem_post(&(params->calc_sem[params->pid]));
+        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
 }
 
-void calc(void *arg)
+void *calc(void *arg)
 {
-    SharedParams *params = (SharedParams *)arg;
+    CalcParams *params = (CalcParams *)arg;
 
-    FILE *file = fopen("calc1.txt", "r");
+    FILE *file = fopen(params->filename, "r");
     char line[BUFFER_SIZE];
 
     int lines_number = 0;
@@ -133,62 +155,82 @@ void calc(void *arg)
     {
         operands[i] = atoll(substring(lines[j], 2, strlen(lines[j]) - 1));
         operations[i] = lines[j][0];
-        printf("[CALC] Operazione letta: %c %lld\n", operations[i], operands[i]);
         j++;
     }
 
-    params->operand_one = atoll(lines[0]);
-    printf("[CALC] Primo operando: %lld\n", params->operand_one);
-
+    long long temp_result;
     for (int i = 0; i < lines_number - 2; i++)
     {
-        sem_wait(&(params->semaphores[CALC]));
 
-        params->operand_two = operands[i];
-        params->operation = operations[i];
+        sem_wait(&(params->shared_params->calc_sem[params->pid]));
+        temp_result = params->shared_params->res;
+        pthread_mutex_lock(&(params->shared_params->shared_params_mutex));
+
+        if (i == 0)
+            params->shared_params->operand_one = atoll(lines[0]);
+        params->shared_params->operand_two = operands[i];
+        params->shared_params->operation = operations[i];
+        params->shared_params->pid = params->pid;
 
         if (operations[i] == '+')
         {
-            sem_post(&(params->semaphores[ADD]));
+            sem_post(&(params->shared_params->operations_sem[ADD]));
         }
         else if (operations[i] == '-')
         {
-            sem_post(&(params->semaphores[SUB]));
+            sem_post(&(params->shared_params->operations_sem[SUB]));
         }
         else if (operations[i] == 'x')
         {
-            sem_post(&(params->semaphores[MUL]));
+            sem_post(&(params->shared_params->operations_sem[MUL]));
         }
     }
 
-    params->done = true;
-    sem_post(&(params->semaphores[ADD]));
-    sem_post(&(params->semaphores[SUB]));
-    sem_post(&(params->semaphores[MUL]));
-
-    printf("[CALC] Risultato calcolato: %lld, Risultato file: %lld\n", params->res, file_result);
-    if (params->res == file_result)
-    {
-        printf("[CALC] Il risultato corrisponde\n");
-    }
+    if (temp_result == file_result)
+        printf("[CALC %d] Il risultato calcolato %lld corrisponde a %lld \n", params->pid, temp_result, file_result);
+    else
+        printf("[CALC %d] Il risultato calcolato %lld NON corrisponde a %lld \n", params->pid, temp_result, file_result);
 
     pthread_exit(0);
 }
 
 int main(int arg, char **argv)
 {
+
+    int calc_thread_n = 3;
+
+    char file_names[3][10] = {"calc1.txt", "calc2.txt", "calc3.txt"};
+
     SharedParams *shared_params = malloc(sizeof(SharedParams));
-    init_shared_params(shared_params);
+    init_shared_params(shared_params, calc_thread_n);
 
-    pthread_t threads[4];
+    pthread_t operations_thread[3];
 
-    pthread_create(&threads[CALC], NULL, calc, shared_params);
-    pthread_create(&threads[ADD], NULL, add, shared_params);
-    pthread_create(&threads[SUB], NULL, sub, shared_params);
-    pthread_create(&threads[MUL], NULL, mul, shared_params);
+    pthread_create(&operations_thread[ADD], NULL, add, shared_params);
+    pthread_create(&operations_thread[SUB], NULL, sub, shared_params);
+    pthread_create(&operations_thread[MUL], NULL, mul, shared_params);
 
-    for (int i = 0; i < 4; i++)
-        pthread_join(threads[i], NULL);
+    pthread_t calc_threads[calc_thread_n];
+
+    for (int i = 0; i < calc_thread_n; i++)
+    {
+        CalcParams *calc_params = malloc(sizeof(CalcParams));
+        calc_params->filename = file_names[i];
+        calc_params->shared_params = shared_params;
+        calc_params->pid = i;
+        pthread_create(&calc_threads[i], NULL, calc, calc_params);
+    }
+
+    for (int i = 0; i < calc_thread_n; i++)
+        pthread_join(calc_threads[i], NULL);
+
+    shared_params->done = true;
+    sem_post(&(shared_params->operations_sem[ADD]));
+    sem_post(&(shared_params->operations_sem[SUB]));
+    sem_post(&(shared_params->operations_sem[MUL]));
+
+    for (int i = 0; i < 3; i++)
+        pthread_join(operations_thread[i], NULL);
 
     return 0;
 }
