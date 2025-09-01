@@ -56,7 +56,7 @@ void init_shared_params(SharedParams *params, int calc_thread_n)
     sem_init(&(params->operations_sem[SUB]), 0, 0);
     sem_init(&(params->operations_sem[MUL]), 0, 0);
 
-    params->calc_sem = malloc(sizeof(pthread_t) * calc_thread_n);
+    params->calc_sem = malloc(sizeof(sem_t) * calc_thread_n);
     for (int i = 0; i < calc_thread_n; i++)
         sem_init(&(params->calc_sem[i]), 0, 1);
 
@@ -79,7 +79,6 @@ void *add(void *arg)
         printf("[ADD %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
-        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
@@ -98,7 +97,6 @@ void *sub(void *arg)
         printf("[SUB %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
-        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
@@ -117,7 +115,6 @@ void *mul(void *arg)
         printf("[MUL %d] %lld + %lld = %lld\n", params->pid, params->operand_one, params->operand_two, params->res);
         params->operand_one = params->res;
         sem_post(&(params->calc_sem[params->pid]));
-        pthread_mutex_unlock(&params->shared_params_mutex);
     }
 
     pthread_exit(0);
@@ -164,6 +161,7 @@ void *calc(void *arg)
 
         sem_wait(&(params->shared_params->calc_sem[params->pid]));
         temp_result = params->shared_params->res;
+        pthread_mutex_unlock(&(params->shared_params->shared_params_mutex));
         pthread_mutex_lock(&(params->shared_params->shared_params_mutex));
 
         if (i == 0)
